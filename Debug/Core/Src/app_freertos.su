@@ -1,0 +1,6 @@
+../Core/Src/app_freertos.c:76:10:readADCData	16	static
+../Core/Src/app_freertos.c:105:6:MX_FREERTOS_Init	8	static
+../Core/Src/app_freertos.c:153:6:sensAnalogTask	16	static
+../Core/Src/app_freertos.c:171:6:sensUARTTask	128	static
+../Core/Src/app_freertos.c:196:6:sensI2CTask	16	static
+../Core/Src/app_freertos.c:210:6:_putchar	16	static

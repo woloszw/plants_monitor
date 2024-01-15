@@ -32,7 +32,11 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef struct
+{
+uint8_t id; 	//Value used to identify which task has sent data
+uint32_t data;  //Data e.g. from sensor
+} SensorData;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -49,10 +53,10 @@
 /* USER CODE BEGIN Variables */
 
 /* USER CODE END Variables */
-/* Definitions for sensAnalog */
-osThreadId_t sensAnalogHandle;
-const osThreadAttr_t sensAnalog_attributes = {
-  .name = "sensAnalog",
+/* Definitions for sensAnalog01 */
+osThreadId_t sensAnalog01Handle;
+const osThreadAttr_t sensAnalog01_attributes = {
+  .name = "sensAnalog01",
   .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
@@ -60,7 +64,7 @@ const osThreadAttr_t sensAnalog_attributes = {
 osThreadId_t sensUARTHandle;
 const osThreadAttr_t sensUART_attributes = {
   .name = "sensUART",
-  .priority = (osPriority_t) osPriorityAboveNormal,
+  .priority = (osPriority_t) osPriorityAboveNormal7,
   .stack_size = 128 * 4
 };
 /* Definitions for sensI2C */
@@ -70,30 +74,63 @@ const osThreadAttr_t sensI2C_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
+/* Definitions for sensAnalog02 */
+osThreadId_t sensAnalog02Handle;
+const osThreadAttr_t sensAnalog02_attributes = {
+  .name = "sensAnalog02",
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 128 * 4
+};
+/* Definitions for pumpTask */
+osThreadId_t pumpTaskHandle;
+const osThreadAttr_t pumpTask_attributes = {
+  .name = "pumpTask",
+  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = 128 * 4
+};
+/* Definitions for queueToUART */
+osMessageQueueId_t queueToUARTHandle;
+const osMessageQueueAttr_t queueToUART_attributes = {
+  .name = "queueToUART"
+};
+/* Definitions for queueToPump */
+osMessageQueueId_t queueToPumpHandle;
+const osMessageQueueAttr_t queueToPump_attributes = {
+  .name = "queueToPump"
+};
+/* Definitions for UART_Semaphore */
+osSemaphoreId_t UART_SemaphoreHandle;
+const osSemaphoreAttr_t UART_Semaphore_attributes = {
+  .name = "UART_Semaphore"
+};
+/* Definitions for ADC_Semaphore */
+osSemaphoreId_t ADC_SemaphoreHandle;
+const osSemaphoreAttr_t ADC_Semaphore_attributes = {
+  .name = "ADC_Semaphore"
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 uint32_t readADCData(ADC_HandleTypeDef _adcHandle)
 {
 	uint32_t analogReadValue;
-//	if(osSemaphoreAcquire(ADCSemaphoreHandle, 100)==osOK)
-//	{
+	osSemaphoreAcquire(ADC_SemaphoreHandle, osWaitForever);
+
 	HAL_ADC_Start(&_adcHandle);
 	HAL_ADC_PollForConversion(&_adcHandle, 1000);
 
 	analogReadValue = (uint32_t) HAL_ADC_GetValue(&_adcHandle);
 	HAL_ADC_Stop(&_adcHandle);
-//	}
-//	if(osSemaphoreRelease(ADCSemaphoreHandle) == osOK)
-		return analogReadValue;
-//	else
-//		return 0;
+	osSemaphoreRelease(ADC_SemaphoreHandle);
+	return analogReadValue;
 }
 /* USER CODE END FunctionPrototypes */
 
-void sensAnalogTask(void *argument);
+void sensAnalog01Task(void *argument);
 void sensUARTTask(void *argument);
 void sensI2CTask(void *argument);
+void sensAnalog02Task(void *argument);
+void StartPumpTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -111,6 +148,13 @@ void MX_FREERTOS_Init(void) {
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
+  /* Create the semaphores(s) */
+  /* creation of UART_Semaphore */
+  UART_SemaphoreHandle = osSemaphoreNew(1, 0, &UART_Semaphore_attributes);
+
+  /* creation of ADC_Semaphore */
+  ADC_SemaphoreHandle = osSemaphoreNew(1, 0, &ADC_Semaphore_attributes);
+
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
@@ -119,19 +163,32 @@ void MX_FREERTOS_Init(void) {
   /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
 
+  /* Create the queue(s) */
+  /* creation of queueToUART */
+  queueToUARTHandle = osMessageQueueNew (16, sizeof(SensorData), &queueToUART_attributes);
+
+  /* creation of queueToPump */
+  queueToPumpHandle = osMessageQueueNew (16, sizeof(uint16_t), &queueToPump_attributes);
+
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* creation of sensAnalog */
-  sensAnalogHandle = osThreadNew(sensAnalogTask, NULL, &sensAnalog_attributes);
+  /* creation of sensAnalog01 */
+  sensAnalog01Handle = osThreadNew(sensAnalog01Task, NULL, &sensAnalog01_attributes);
 
   /* creation of sensUART */
   sensUARTHandle = osThreadNew(sensUARTTask, NULL, &sensUART_attributes);
 
   /* creation of sensI2C */
   sensI2CHandle = osThreadNew(sensI2CTask, NULL, &sensI2C_attributes);
+
+  /* creation of sensAnalog02 */
+  sensAnalog02Handle = osThreadNew(sensAnalog02Task, NULL, &sensAnalog02_attributes);
+
+  /* creation of pumpTask */
+  pumpTaskHandle = osThreadNew(StartPumpTask, NULL, &pumpTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -143,22 +200,33 @@ void MX_FREERTOS_Init(void) {
 
 }
 
-/* USER CODE BEGIN Header_sensAnalogTask */
+/* USER CODE BEGIN Header_sensAnalog01Task */
 /**
-  * @brief  Function implementing the sensAnalog thread.
+  * @brief  Function implementing the sensAnalog01 thread.
   * @param  argument: Not used
   * @retval None
   */
-/* USER CODE END Header_sensAnalogTask */
-void sensAnalogTask(void *argument)
+/* USER CODE END Header_sensAnalog01Task */
+void sensAnalog01Task(void *argument)
 {
-  /* USER CODE BEGIN sensAnalogTask */
+  /* USER CODE BEGIN sensAnalog01Task */
+	SensorData analog1task =
+	{
+		.id = osThreadGetId()
+	};
+
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	  analog1task.data = readADCData(hadc1);
+	  if(osOK==osMessageQueuePut(queueToUARTHandle, (SensorData*)&analog1task, 0, osWaitForever))
+	  {
+		  printf("Sending %d from %d \n \r", analog1task.data, analog1task.id);
+	  }
+
+    osDelay(250);
   }
-  /* USER CODE END sensAnalogTask */
+  /* USER CODE END sensAnalog01Task */
 }
 
 /* USER CODE BEGIN Header_sensUARTTask */
@@ -171,17 +239,16 @@ void sensAnalogTask(void *argument)
 void sensUARTTask(void *argument)
 {
   /* USER CODE BEGIN sensUARTTask */
-	uint32_t ddata;
+	SensorData receivedData;
 
 
   /* Infinite loop */
   for(;;)
   {
-	 ddata = readADCData(hadc1);
-	 printf("%d \n \r", ddata);
-
-
-	  osDelay(1000);
+	if(osOK == osMessageQueueGet(queueToUARTHandle, (SensorData*)&receivedData, 0, osWaitForever))
+	{
+		printf("%d : %d \n \r",receivedData.id, receivedData.data);
+	}
   }
   /* USER CODE END sensUARTTask */
 }
@@ -199,18 +266,67 @@ void sensI2CTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    osDelay(1000);
+	osDelay(1);
   }
   /* USER CODE END sensI2CTask */
+}
+
+/* USER CODE BEGIN Header_sensAnalog02Task */
+/**
+* @brief Function implementing the sensAnalog02 thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_sensAnalog02Task */
+void sensAnalog02Task(void *argument)
+{
+  /* USER CODE BEGIN sensAnalog02Task */
+	SensorData analog2task =
+	{
+			.id = osThreadGetId()
+	};
+
+  /* Infinite loop */
+  for(;;)
+	  analog2task.data = 0;
+	  	  if(osOK==osMessageQueuePut(queueToUARTHandle, (SensorData*)&analog2task, 0, osWaitForever))
+	  	  {
+	  		printf("Sending %d from %d \n \r", analog2task.data, analog2task.id);
+	  		analog2task.data++;
+	  	  }
+	      osDelay(250);
+  /* USER CODE END sensAnalog02Task */
+}
+
+/* USER CODE BEGIN Header_StartPumpTask */
+/**
+* @brief Function implementing the pumpTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartPumpTask */
+void StartPumpTask(void *argument)
+{
+  /* USER CODE BEGIN StartPumpTask */
+  /* Infinite loop */
+  for(;;)
+  {
+	  HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+	  osDelay(1000);
+  }
+  /* USER CODE END StartPumpTask */
 }
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
 void _putchar(char character)
 {
+	//osSemaphoreAcquire(UART_SemaphoreHandle, osWaitForever);
   // send char to console etc.
+	osSemaphoreAcquire(UART_SemaphoreHandle, osWaitForever);
 	HAL_UART_Transmit(&hlpuart1, (uint8_t*) &character, 1, 1000);
+	//HAL_UART_Transmit(&huart5, (uint8_t*) &character, 1, 1000);
+	osSemaphoreRelease(UART_SemaphoreHandle);
 }
 /* USER CODE END Application */
 

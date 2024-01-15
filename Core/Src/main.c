@@ -93,7 +93,6 @@ int main(void)
   MX_ADC1_Init();
   MX_UART5_Init();
   /* USER CODE BEGIN 2 */
-
   /* USER CODE END 2 */
 
   /* Init scheduler */

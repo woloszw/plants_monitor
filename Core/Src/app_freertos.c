@@ -114,14 +114,13 @@ const osSemaphoreAttr_t ADC_Semaphore_attributes = {
 uint32_t readADCData(ADC_HandleTypeDef _adcHandle)
 {
 	uint32_t analogReadValue;
-	osSemaphoreAcquire(ADC_SemaphoreHandle, osWaitForever);
 
 	HAL_ADC_Start(&_adcHandle);
 	HAL_ADC_PollForConversion(&_adcHandle, 1000);
 
 	analogReadValue = (uint32_t) HAL_ADC_GetValue(&_adcHandle);
 	HAL_ADC_Stop(&_adcHandle);
-	osSemaphoreRelease(ADC_SemaphoreHandle);
+
 	return analogReadValue;
 }
 /* USER CODE END FunctionPrototypes */
@@ -212,19 +211,22 @@ void sensAnalog01Task(void *argument)
   /* USER CODE BEGIN sensAnalog01Task */
 	SensorData analog1task =
 	{
-		.id = osThreadGetId()
+		.id = 1,
+		.data = 123,
 	};
 
   /* Infinite loop */
   for(;;)
   {
+	  osSemaphoreAcquire(ADC_SemaphoreHandle, osWaitForever);
 	  analog1task.data = readADCData(hadc1);
+	  osSemaphoreRelease(ADC_SemaphoreHandle);
 	  if(osOK==osMessageQueuePut(queueToUARTHandle, (SensorData*)&analog1task, 0, osWaitForever))
 	  {
-		  printf("Sending %d from %d \n \r", analog1task.data, analog1task.id);
+		  //printf("Sending %d from %d \n \r", analog1task.data, analog1task.id);
 	  }
 
-    osDelay(250);
+    osDelay(1000);
   }
   /* USER CODE END sensAnalog01Task */
 }
@@ -240,14 +242,12 @@ void sensUARTTask(void *argument)
 {
   /* USER CODE BEGIN sensUARTTask */
 	SensorData receivedData;
-
-
   /* Infinite loop */
   for(;;)
   {
 	if(osOK == osMessageQueueGet(queueToUARTHandle, (SensorData*)&receivedData, 0, osWaitForever))
 	{
-		printf("%d : %d \n \r",receivedData.id, receivedData.data);
+		printf("%d : %d \n \r", receivedData.id, receivedData.data);
 	}
   }
   /* USER CODE END sensUARTTask */
@@ -283,20 +283,26 @@ void sensAnalog02Task(void *argument)
   /* USER CODE BEGIN sensAnalog02Task */
 	SensorData analog2task =
 	{
-			.id = osThreadGetId()
+			.id = 6,
+			.data = 0
 	};
 
   /* Infinite loop */
   for(;;)
-	  analog2task.data = 0;
-	  	  if(osOK==osMessageQueuePut(queueToUARTHandle, (SensorData*)&analog2task, 0, osWaitForever))
-	  	  {
-	  		printf("Sending %d from %d \n \r", analog2task.data, analog2task.id);
-	  		analog2task.data++;
-	  	  }
-	      osDelay(250);
+  {
+	  osSemaphoreAcquire(ADC_SemaphoreHandle, osWaitForever);
+	  analog2task.data = readADCData(hadc1);
+	  osSemaphoreRelease(ADC_SemaphoreHandle);
+	  if(osOK==osMessageQueuePut(queueToUARTHandle, (SensorData*)&analog2task, 0, osWaitForever))
+	  {
+	  //printf("Sending %d from %d \n \r", analog2task.data, analog2task.id);
+
+	  }
+	  osDelay(1000);
+  }
   /* USER CODE END sensAnalog02Task */
 }
+
 
 /* USER CODE BEGIN Header_StartPumpTask */
 /**
@@ -321,12 +327,13 @@ void StartPumpTask(void *argument)
 /* USER CODE BEGIN Application */
 void _putchar(char character)
 {
-	//osSemaphoreAcquire(UART_SemaphoreHandle, osWaitForever);
   // send char to console etc.
-	osSemaphoreAcquire(UART_SemaphoreHandle, osWaitForever);
+	//osSemaphoreAcquire(UART_SemaphoreHandle, osWaitForever);
 	HAL_UART_Transmit(&hlpuart1, (uint8_t*) &character, 1, 1000);
 	//HAL_UART_Transmit(&huart5, (uint8_t*) &character, 1, 1000);
-	osSemaphoreRelease(UART_SemaphoreHandle);
+	//osSemaphoreRelease(UART_SemaphoreHandle);
 }
 /* USER CODE END Application */
+
+/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
 

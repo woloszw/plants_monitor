@@ -1,8 +1,8 @@
 ../Core/Src/app_freertos.c:114:10:readADCData	16	static
 ../Core/Src/app_freertos.c:141:6:MX_FREERTOS_Init	8	static
 ../Core/Src/app_freertos.c:209:6:sensAnalog01Task	128	static
-../Core/Src/app_freertos.c:241:6:sensUARTTask	24	static
-../Core/Src/app_freertos.c:263:6:sensI2CTask	16	static
-../Core/Src/app_freertos.c:281:6:sensAnalog02Task	128	static
-../Core/Src/app_freertos.c:314:6:StartPumpTask	16	static
-../Core/Src/app_freertos.c:328:6:_putchar	16	static
+../Core/Src/app_freertos.c:244:6:sensUARTTask	24	static
+../Core/Src/app_freertos.c:266:6:sensI2CTask	16	static
+../Core/Src/app_freertos.c:284:6:sensAnalog02Task	128	static
+../Core/Src/app_freertos.c:317:6:StartPumpTask	16	static
+../Core/Src/app_freertos.c:331:6:_putchar	16	static

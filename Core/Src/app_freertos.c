@@ -218,13 +218,16 @@ void sensAnalog01Task(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	  osSemaphoreAcquire(ADC_SemaphoreHandle, osWaitForever);
+	  osSemaphoreAcquire(ADC_SemaphoreHandle, 100);
 	  analog1task.data = readADCData(hadc1);
 	  osSemaphoreRelease(ADC_SemaphoreHandle);
+	  //analog1task.data = 4321;
+
 	  if(osOK==osMessageQueuePut(queueToUARTHandle, (SensorData*)&analog1task, 0, osWaitForever))
 	  {
 		  //printf("Sending %d from %d \n \r", analog1task.data, analog1task.id);
 	  }
+
 
     osDelay(1000);
   }
@@ -283,16 +286,17 @@ void sensAnalog02Task(void *argument)
   /* USER CODE BEGIN sensAnalog02Task */
 	SensorData analog2task =
 	{
-			.id = 6,
+			.id = 2,
 			.data = 0
 	};
 
   /* Infinite loop */
   for(;;)
   {
-	  osSemaphoreAcquire(ADC_SemaphoreHandle, osWaitForever);
+	  osSemaphoreAcquire(ADC_SemaphoreHandle, 100);
 	  analog2task.data = readADCData(hadc1);
 	  osSemaphoreRelease(ADC_SemaphoreHandle);
+//	  analog2task.data = 1234;
 	  if(osOK==osMessageQueuePut(queueToUARTHandle, (SensorData*)&analog2task, 0, osWaitForever))
 	  {
 	  //printf("Sending %d from %d \n \r", analog2task.data, analog2task.id);
@@ -302,7 +306,6 @@ void sensAnalog02Task(void *argument)
   }
   /* USER CODE END sensAnalog02Task */
 }
-
 
 /* USER CODE BEGIN Header_StartPumpTask */
 /**
@@ -334,6 +337,4 @@ void _putchar(char character)
 	//osSemaphoreRelease(UART_SemaphoreHandle);
 }
 /* USER CODE END Application */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
 

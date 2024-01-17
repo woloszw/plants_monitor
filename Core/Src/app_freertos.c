@@ -321,6 +321,12 @@ void StartPumpTask(void *argument)
   for(;;)
   {
 	  HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+
+//	  if(HAL_GPIO_ReadPin(LD2_GPIO_Port, LD2_Pin))
+//		  printf("LED ON \n \r");
+//	  else
+//		  printf("LED OFF \n \r");
+
 	  osDelay(1000);
   }
   /* USER CODE END StartPumpTask */
@@ -331,10 +337,10 @@ void StartPumpTask(void *argument)
 void _putchar(char character)
 {
   // send char to console etc.
-	//osSemaphoreAcquire(UART_SemaphoreHandle, osWaitForever);
+	osSemaphoreAcquire(UART_SemaphoreHandle, 100);
 	HAL_UART_Transmit(&hlpuart1, (uint8_t*) &character, 1, 1000);
 	//HAL_UART_Transmit(&huart5, (uint8_t*) &character, 1, 1000);
-	//osSemaphoreRelease(UART_SemaphoreHandle);
+	osSemaphoreRelease(UART_SemaphoreHandle);
 }
 /* USER CODE END Application */
 

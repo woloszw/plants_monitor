@@ -5,4 +5,4 @@
 ../Core/Src/app_freertos.c:266:6:sensI2CTask	1
 ../Core/Src/app_freertos.c:284:6:sensAnalog02Task	1
 ../Core/Src/app_freertos.c:317:6:StartPumpTask	1
-../Core/Src/app_freertos.c:331:6:_putchar	1
+../Core/Src/app_freertos.c:337:6:_putchar	1

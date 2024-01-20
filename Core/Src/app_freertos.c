@@ -28,6 +28,7 @@
 #include "usart.h"
 #include "printf.h"
 #include "adc.h"
+#include "bmp280.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -51,6 +52,7 @@ uint32_t data;  //Data e.g. from sensor
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+extern BMP280_t Bmp280;
 
 /* USER CODE END Variables */
 /* Definitions for sensAnalog01 */
@@ -88,6 +90,13 @@ const osThreadAttr_t pumpTask_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
+/* Definitions for sensGPIO */
+osThreadId_t sensGPIOHandle;
+const osThreadAttr_t sensGPIO_attributes = {
+  .name = "sensGPIO",
+  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = 128 * 4
+};
 /* Definitions for queueToUART */
 osMessageQueueId_t queueToUARTHandle;
 const osMessageQueueAttr_t queueToUART_attributes = {
@@ -113,16 +122,36 @@ const osSemaphoreAttr_t ADC_Semaphore_attributes = {
 /* USER CODE BEGIN FunctionPrototypes */
 uint32_t readADCData(ADC_HandleTypeDef _adcHandle)
 {
-	uint32_t analogReadValue;
+	uint32_t analogReadValue = 1234;
 
 	HAL_ADC_Start(&_adcHandle);
-	HAL_ADC_PollForConversion(&_adcHandle, 1000);
+	if(HAL_ADC_PollForConversion(&_adcHandle, 1000)==HAL_OK)
+		analogReadValue = (uint32_t) HAL_ADC_GetValue(&_adcHandle);
 
-	analogReadValue = (uint32_t) HAL_ADC_GetValue(&_adcHandle);
+
 	HAL_ADC_Stop(&_adcHandle);
 
 	return analogReadValue;
 }
+
+void SetChannel(uint32_t Channel)
+{
+	  ADC_ChannelConfTypeDef sConfig = {0};
+
+	  /** Configure Regular Channel
+	    */
+	    sConfig.Channel = Channel;
+	    sConfig.Rank = ADC_REGULAR_RANK_1;
+	    sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+	    sConfig.SingleDiff = ADC_SINGLE_ENDED;
+	    sConfig.OffsetNumber = ADC_OFFSET_NONE;
+	    sConfig.Offset = 0;
+	    if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+	    {
+	      Error_Handler();
+	    }
+}
+
 /* USER CODE END FunctionPrototypes */
 
 void sensAnalog01Task(void *argument);
@@ -130,6 +159,7 @@ void sensUARTTask(void *argument);
 void sensI2CTask(void *argument);
 void sensAnalog02Task(void *argument);
 void StartPumpTask(void *argument);
+void sensGPIOTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -189,6 +219,9 @@ void MX_FREERTOS_Init(void) {
   /* creation of pumpTask */
   pumpTaskHandle = osThreadNew(StartPumpTask, NULL, &pumpTask_attributes);
 
+  /* creation of sensGPIO */
+  sensGPIOHandle = osThreadNew(sensGPIOTask, NULL, &sensGPIO_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -219,6 +252,7 @@ void sensAnalog01Task(void *argument)
   for(;;)
   {
 	  osSemaphoreAcquire(ADC_SemaphoreHandle, 100);
+	  SetChannel(ADC_CHANNEL_1);
 	  analog1task.data = readADCData(hadc1);
 	  osSemaphoreRelease(ADC_SemaphoreHandle);
 	  //analog1task.data = 4321;
@@ -250,7 +284,7 @@ void sensUARTTask(void *argument)
   {
 	if(osOK == osMessageQueueGet(queueToUARTHandle, (SensorData*)&receivedData, 0, osWaitForever))
 	{
-		printf("%d : %d \n \r", receivedData.id, receivedData.data);
+		printf("\n %d : %d \n \r", receivedData.id, receivedData.data);
 	}
   }
   /* USER CODE END sensUARTTask */
@@ -266,10 +300,21 @@ void sensUARTTask(void *argument)
 void sensI2CTask(void *argument)
 {
   /* USER CODE BEGIN sensI2CTask */
+	extern BMP280_t Bmp280;
+	float Temp, Pressure;
+
+	SensorData i2ctask = {.id = 3,.data = 0};
+
   /* Infinite loop */
   for(;;)
   {
-	osDelay(1);
+	BMP280_ReadPressureAndTemperature(&Bmp280, &Pressure, &Temp);
+	i2ctask.data = Pressure;
+	osMessageQueuePut(queueToUARTHandle, (SensorData*)&i2ctask, 0, osWaitForever);
+	i2ctask.data = Temp;
+	osMessageQueuePut(queueToUARTHandle, (SensorData*)&i2ctask, 0, osWaitForever);
+
+	osDelay(1000);
   }
   /* USER CODE END sensI2CTask */
 }
@@ -294,6 +339,7 @@ void sensAnalog02Task(void *argument)
   for(;;)
   {
 	  osSemaphoreAcquire(ADC_SemaphoreHandle, 100);
+	  SetChannel(ADC_CHANNEL_2);
 	  analog2task.data = readADCData(hadc1);
 	  osSemaphoreRelease(ADC_SemaphoreHandle);
 //	  analog2task.data = 1234;
@@ -330,6 +376,34 @@ void StartPumpTask(void *argument)
 	  osDelay(1000);
   }
   /* USER CODE END StartPumpTask */
+}
+
+/* USER CODE BEGIN Header_sensGPIOTask */
+/**
+* @brief Function implementing the sensGPIO thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_sensGPIOTask */
+void sensGPIOTask(void *argument)
+{
+  /* USER CODE BEGIN sensGPIOTask */
+	SensorData gpiotask =
+		{
+				.id = 5,
+				.data = 0
+		};
+  /* Infinite loop */
+  for(;;)
+  {
+	  if(HAL_GPIO_ReadPin(GPIO_IN_GPIO_Port, GPIO_IN_Pin))
+		  gpiotask.data = 1000;
+	  else
+		  gpiotask.data = 2000;
+	  osMessageQueuePut(queueToUARTHandle, (SensorData*)&gpiotask, 0, osWaitForever);
+    osDelay(500);
+  }
+  /* USER CODE END sensGPIOTask */
 }
 
 /* Private application code --------------------------------------------------*/

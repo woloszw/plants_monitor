@@ -20,12 +20,14 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include "adc.h"
+#include "i2c.h"
 #include "usart.h"
+#include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "bmp280.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -35,7 +37,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define BMP280_ADDRESS 0x76
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -46,7 +48,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+BMP280_t Bmp280;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -92,7 +94,10 @@ int main(void)
   MX_LPUART1_UART_Init();
   MX_ADC1_Init();
   MX_UART5_Init();
+  MX_TIM6_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
+  BMP280_Init(&Bmp280, &hi2c2, BMP280_ADDRESS);
   /* USER CODE END 2 */
 
   /* Init scheduler */

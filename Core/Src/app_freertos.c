@@ -263,7 +263,7 @@ void sensAnalog01Task(void *argument)
 	  }
 
 
-    osDelay(1000);
+    osDelay(10000);
   }
   /* USER CODE END sensAnalog01Task */
 }
@@ -285,6 +285,7 @@ void sensUARTTask(void *argument)
 	if(osOK == osMessageQueueGet(queueToUARTHandle, (SensorData*)&receivedData, 0, osWaitForever))
 	{
 		printf("\n %d : %d \n \r", receivedData.id, receivedData.data);
+		//printf("%d%d\n\r", receivedData.id, receivedData.data);
 	}
   }
   /* USER CODE END sensUARTTask */
@@ -314,7 +315,7 @@ void sensI2CTask(void *argument)
 	i2ctask.data = Temp;
 	osMessageQueuePut(queueToUARTHandle, (SensorData*)&i2ctask, 0, osWaitForever);
 
-	osDelay(1000);
+	osDelay(10000);
   }
   /* USER CODE END sensI2CTask */
 }
@@ -348,7 +349,7 @@ void sensAnalog02Task(void *argument)
 	  //printf("Sending %d from %d \n \r", analog2task.data, analog2task.id);
 
 	  }
-	  osDelay(1000);
+	  osDelay(10000);
   }
   /* USER CODE END sensAnalog02Task */
 }
@@ -367,12 +368,6 @@ void StartPumpTask(void *argument)
   for(;;)
   {
 	  HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-
-//	  if(HAL_GPIO_ReadPin(LD2_GPIO_Port, LD2_Pin))
-//		  printf("LED ON \n \r");
-//	  else
-//		  printf("LED OFF \n \r");
-
 	  osDelay(1000);
   }
   /* USER CODE END StartPumpTask */
@@ -390,7 +385,7 @@ void sensGPIOTask(void *argument)
   /* USER CODE BEGIN sensGPIOTask */
 	SensorData gpiotask =
 		{
-				.id = 5,
+				.id = 9,
 				.data = 0
 		};
   /* Infinite loop */
@@ -401,7 +396,7 @@ void sensGPIOTask(void *argument)
 	  else
 		  gpiotask.data = 2000;
 	  osMessageQueuePut(queueToUARTHandle, (SensorData*)&gpiotask, 0, osWaitForever);
-    osDelay(500);
+    osDelay(1000);
   }
   /* USER CODE END sensGPIOTask */
 }
@@ -412,8 +407,8 @@ void _putchar(char character)
 {
   // send char to console etc.
 	osSemaphoreAcquire(UART_SemaphoreHandle, 100);
-	HAL_UART_Transmit(&hlpuart1, (uint8_t*) &character, 1, 1000);
-	//HAL_UART_Transmit(&huart5, (uint8_t*) &character, 1, 1000);
+	//HAL_UART_Transmit(&hlpuart1, (uint8_t*) &character, 1, 1000);
+	HAL_UART_Transmit(&huart5, (uint8_t*) &character, 1, 1000);
 	osSemaphoreRelease(UART_SemaphoreHandle);
 }
 /* USER CODE END Application */

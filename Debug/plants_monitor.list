@@ -39,9 +39,9 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  17 .debug_macro  00024e94  00000000  00000000  00052ffd  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_line   000288ab  00000000  00000000  00077e91  2**0
+ 18 .debug_line   000288a9  00000000  00000000  00077e91  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .debug_str    000f1653  00000000  00000000  000a073c  2**0
+ 19 .debug_str    000f1653  00000000  00000000  000a073a  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  20 .debug_frame  0000928c  00000000  00000000  00191d90  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
@@ -1795,8 +1795,8 @@ void sensAnalog01Task(void *argument)
 	  }
 
 
-    osDelay(1000);
- 80012b4:	f44f 707a 	mov.w	r0, #1000	; 0x3e8
+    osDelay(10000);
+ 80012b4:	f242 7010 	movw	r0, #10000	; 0x2710
  80012b8:	f008 f97e 	bl	80095b8 <osDelay>
 	  osSemaphoreAcquire(ADC_SemaphoreHandle, 100);
  80012bc:	e7d5      	b.n	800126a <sensAnalog01Task+0x16>
@@ -1901,8 +1901,8 @@ void sensI2CTask(void *argument)
  8001366:	2200      	movs	r2, #0
  8001368:	f008 fad4 	bl	8009914 <osMessageQueuePut>
 
-	osDelay(1000);
- 800136c:	f44f 707a 	mov.w	r0, #1000	; 0x3e8
+	osDelay(10000);
+ 800136c:	f242 7010 	movw	r0, #10000	; 0x2710
  8001370:	f008 f922 	bl	80095b8 <osDelay>
 	BMP280_ReadPressureAndTemperature(&Bmp280, &Pressure, &Temp);
  8001374:	e7d2      	b.n	800131c <sensI2CTask+0x10>
@@ -1969,8 +1969,8 @@ void sensAnalog02Task(void *argument)
 	  //printf("Sending %d from %d \n \r", analog2task.data, analog2task.id);
 
 	  }
-	  osDelay(1000);
- 80013da:	f44f 707a 	mov.w	r0, #1000	; 0x3e8
+	  osDelay(10000);
+ 80013da:	f242 7010 	movw	r0, #10000	; 0x2710
  80013de:	f008 f8eb 	bl	80095b8 <osDelay>
 	  osSemaphoreAcquire(ADC_SemaphoreHandle, 100);
  80013e2:	e7d5      	b.n	8001390 <sensAnalog02Task+0x10>
@@ -1998,11 +1998,6 @@ void StartPumpTask(void *argument)
  80013fc:	2120      	movs	r1, #32
  80013fe:	f04f 4090 	mov.w	r0, #1207959552	; 0x48000000
  8001402:	f004 fe4f 	bl	80060a4 <HAL_GPIO_TogglePin>
-//	  if(HAL_GPIO_ReadPin(LD2_GPIO_Port, LD2_Pin))
-//		  printf("LED ON \n \r");
-//	  else
-//		  printf("LED OFF \n \r");
-
 	  osDelay(1000);
  8001406:	f44f 707a 	mov.w	r0, #1000	; 0x3e8
  800140a:	f008 f8d5 	bl	80095b8 <osDelay>
@@ -2022,7 +2017,7 @@ void sensGPIOTask(void *argument)
  8001416:	6078      	str	r0, [r7, #4]
   /* USER CODE BEGIN sensGPIOTask */
 	SensorData gpiotask =
- 8001418:	2305      	movs	r3, #5
+ 8001418:	2309      	movs	r3, #9
  800141a:	723b      	strb	r3, [r7, #8]
  800141c:	2300      	movs	r3, #0
  800141e:	60fb      	str	r3, [r7, #12]
@@ -2053,8 +2048,8 @@ void sensGPIOTask(void *argument)
  8001444:	f04f 33ff 	mov.w	r3, #4294967295
  8001448:	2200      	movs	r2, #0
  800144a:	f008 fa63 	bl	8009914 <osMessageQueuePut>
-    osDelay(500);
- 800144e:	f44f 70fa 	mov.w	r0, #500	; 0x1f4
+    osDelay(1000);
+ 800144e:	f44f 707a 	mov.w	r0, #1000	; 0x3e8
  8001452:	f008 f8b1 	bl	80095b8 <osDelay>
 	  if(HAL_GPIO_ReadPin(GPIO_IN_GPIO_Port, GPIO_IN_Pin))
  8001456:	e7e3      	b.n	8001420 <sensGPIOTask+0x10>
@@ -2080,13 +2075,13 @@ void _putchar(char character)
  800146e:	2164      	movs	r1, #100	; 0x64
  8001470:	4618      	mov	r0, r3
  8001472:	f008 f945 	bl	8009700 <osSemaphoreAcquire>
-	HAL_UART_Transmit(&hlpuart1, (uint8_t*) &character, 1, 1000);
+	//HAL_UART_Transmit(&hlpuart1, (uint8_t*) &character, 1, 1000);
+	HAL_UART_Transmit(&huart5, (uint8_t*) &character, 1, 1000);
  8001476:	1df9      	adds	r1, r7, #7
  8001478:	f44f 737a 	mov.w	r3, #1000	; 0x3e8
  800147c:	2201      	movs	r2, #1
  800147e:	4807      	ldr	r0, [pc, #28]	; (800149c <_putchar+0x3c>)
  8001480:	f007 f8ce 	bl	8008620 <HAL_UART_Transmit>
-	//HAL_UART_Transmit(&huart5, (uint8_t*) &character, 1, 1000);
 	osSemaphoreRelease(UART_SemaphoreHandle);
  8001484:	4b04      	ldr	r3, [pc, #16]	; (8001498 <_putchar+0x38>)
  8001486:	681b      	ldr	r3, [r3, #0]
@@ -2099,7 +2094,7 @@ void _putchar(char character)
  8001494:	bd80      	pop	{r7, pc}
  8001496:	bf00      	nop
  8001498:	20000108 	.word	0x20000108
- 800149c:	20000220 	.word	0x20000220
+ 800149c:	200002b4 	.word	0x200002b4
 
 080014a0 <Read8>:
 

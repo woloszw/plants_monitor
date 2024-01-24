@@ -448,7 +448,7 @@ void _putchar(char character)
 {
   // send char to console etc.
 	osSemaphoreAcquire(UART_SemaphoreHandle, 100);
-	HAL_UART_Transmit(&hlpuart1, (uint8_t*) &character, 1, 1000);
+	HAL_UART_Transmit(&hlpuart1, (uint8_t*) &character, 1, 1000); //for debug only
 	//HAL_UART_Transmit(&huart5, (uint8_t*) &character, 1, 1000);
 	osSemaphoreRelease(UART_SemaphoreHandle);
 }

@@ -42,6 +42,18 @@ uint32_t data;  //Data e.g. from sensor
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define MOISTURE_SENSOR_TASK_ID 1
+#define MOISTURE_MIN 500
+#define MOISTURE_MAX 2000
+
+#define BMP280_TASK_ID 2
+#define TEMPERATURE_MIN 15
+#define TEMPERATURE_MAX 50
+
+#define INSOLATION_TASK_ID 3
+
+#define RAIN_DETECTION_TASK_ID 4
+
 
 /* USER CODE END PD */
 
@@ -83,10 +95,10 @@ const osThreadAttr_t sensAnalog02_attributes = {
   .priority = (osPriority_t) osPriorityLow,
   .stack_size = 128 * 4
 };
-/* Definitions for pumpTask */
-osThreadId_t pumpTaskHandle;
-const osThreadAttr_t pumpTask_attributes = {
-  .name = "pumpTask",
+/* Definitions for infoTask */
+osThreadId_t infoTaskHandle;
+const osThreadAttr_t infoTask_attributes = {
+  .name = "infoTask",
   .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
@@ -102,10 +114,10 @@ osMessageQueueId_t queueToUARTHandle;
 const osMessageQueueAttr_t queueToUART_attributes = {
   .name = "queueToUART"
 };
-/* Definitions for queueToPump */
-osMessageQueueId_t queueToPumpHandle;
-const osMessageQueueAttr_t queueToPump_attributes = {
-  .name = "queueToPump"
+/* Definitions for queueToInfo */
+osMessageQueueId_t queueToInfoHandle;
+const osMessageQueueAttr_t queueToInfo_attributes = {
+  .name = "queueToInfo"
 };
 /* Definitions for UART_Semaphore */
 osSemaphoreId_t UART_SemaphoreHandle;
@@ -122,7 +134,7 @@ const osSemaphoreAttr_t ADC_Semaphore_attributes = {
 /* USER CODE BEGIN FunctionPrototypes */
 uint32_t readADCData(ADC_HandleTypeDef _adcHandle)
 {
-	uint32_t analogReadValue = 1234;
+	uint32_t analogReadValue;
 
 	HAL_ADC_Start(&_adcHandle);
 	if(HAL_ADC_PollForConversion(&_adcHandle, 1000)==HAL_OK)
@@ -158,7 +170,7 @@ void sensAnalog01Task(void *argument);
 void sensUARTTask(void *argument);
 void sensI2CTask(void *argument);
 void sensAnalog02Task(void *argument);
-void StartPumpTask(void *argument);
+void StartInfoTask(void *argument);
 void sensGPIOTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
@@ -196,8 +208,8 @@ void MX_FREERTOS_Init(void) {
   /* creation of queueToUART */
   queueToUARTHandle = osMessageQueueNew (16, sizeof(SensorData), &queueToUART_attributes);
 
-  /* creation of queueToPump */
-  queueToPumpHandle = osMessageQueueNew (16, sizeof(uint16_t), &queueToPump_attributes);
+  /* creation of queueToInfo */
+  queueToInfoHandle = osMessageQueueNew (16, sizeof(SensorData), &queueToInfo_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -216,8 +228,8 @@ void MX_FREERTOS_Init(void) {
   /* creation of sensAnalog02 */
   sensAnalog02Handle = osThreadNew(sensAnalog02Task, NULL, &sensAnalog02_attributes);
 
-  /* creation of pumpTask */
-  pumpTaskHandle = osThreadNew(StartPumpTask, NULL, &pumpTask_attributes);
+  /* creation of infoTask */
+  infoTaskHandle = osThreadNew(StartInfoTask, NULL, &infoTask_attributes);
 
   /* creation of sensGPIO */
   sensGPIOHandle = osThreadNew(sensGPIOTask, NULL, &sensGPIO_attributes);
@@ -242,11 +254,8 @@ void MX_FREERTOS_Init(void) {
 void sensAnalog01Task(void *argument)
 {
   /* USER CODE BEGIN sensAnalog01Task */
-	SensorData analog1task =
-	{
-		.id = 1,
-		.data = 123,
-	};
+	// Dirt Moisture sensor
+	SensorData analog1task =	{	.id = MOISTURE_SENSOR_TASK_ID, .data = 123};
 
   /* Infinite loop */
   for(;;)
@@ -255,15 +264,10 @@ void sensAnalog01Task(void *argument)
 	  SetChannel(ADC_CHANNEL_1);
 	  analog1task.data = readADCData(hadc1);
 	  osSemaphoreRelease(ADC_SemaphoreHandle);
-	  //analog1task.data = 4321;
 
-	  if(osOK==osMessageQueuePut(queueToUARTHandle, (SensorData*)&analog1task, 0, osWaitForever))
-	  {
-		  //printf("Sending %d from %d \n \r", analog1task.data, analog1task.id);
-	  }
-
-
-    osDelay(10000);
+	  osMessageQueuePut(queueToUARTHandle, (SensorData*)&analog1task, 0, osWaitForever);
+	  osMessageQueuePut(queueToInfoHandle, (SensorData*)&analog1task, 0, osWaitForever);
+	  osDelay(10000);
   }
   /* USER CODE END sensAnalog01Task */
 }
@@ -284,8 +288,7 @@ void sensUARTTask(void *argument)
   {
 	if(osOK == osMessageQueueGet(queueToUARTHandle, (SensorData*)&receivedData, 0, osWaitForever))
 	{
-		printf("\n %d : %d \n \r", receivedData.id, receivedData.data);
-		//printf("%d%d\n\r", receivedData.id, receivedData.data);
+		printf("%d:%d \n \r", receivedData.id, receivedData.data);
 	}
   }
   /* USER CODE END sensUARTTask */
@@ -301,10 +304,10 @@ void sensUARTTask(void *argument)
 void sensI2CTask(void *argument)
 {
   /* USER CODE BEGIN sensI2CTask */
+	//Bmp280 - pressure and temperature sensor
 	extern BMP280_t Bmp280;
 	float Temp, Pressure;
-
-	SensorData i2ctask = {.id = 3,.data = 0};
+	SensorData i2ctask = {.id = BMP280_TASK_ID, .data = 0};
 
   /* Infinite loop */
   for(;;)
@@ -314,6 +317,7 @@ void sensI2CTask(void *argument)
 	osMessageQueuePut(queueToUARTHandle, (SensorData*)&i2ctask, 0, osWaitForever);
 	i2ctask.data = Temp;
 	osMessageQueuePut(queueToUARTHandle, (SensorData*)&i2ctask, 0, osWaitForever);
+	osMessageQueuePut(queueToInfoHandle, (SensorData*)&i2ctask, 0, osWaitForever);
 
 	osDelay(10000);
   }
@@ -330,11 +334,8 @@ void sensI2CTask(void *argument)
 void sensAnalog02Task(void *argument)
 {
   /* USER CODE BEGIN sensAnalog02Task */
-	SensorData analog2task =
-	{
-			.id = 2,
-			.data = 0
-	};
+	// Insolation sensor
+	SensorData analog2task =	{.id = INSOLATION_TASK_ID, .data = 0	};
 
   /* Infinite loop */
   for(;;)
@@ -343,34 +344,76 @@ void sensAnalog02Task(void *argument)
 	  SetChannel(ADC_CHANNEL_2);
 	  analog2task.data = readADCData(hadc1);
 	  osSemaphoreRelease(ADC_SemaphoreHandle);
-//	  analog2task.data = 1234;
-	  if(osOK==osMessageQueuePut(queueToUARTHandle, (SensorData*)&analog2task, 0, osWaitForever))
-	  {
-	  //printf("Sending %d from %d \n \r", analog2task.data, analog2task.id);
 
-	  }
+	  osMessageQueuePut(queueToUARTHandle, (SensorData*)&analog2task, 0, osWaitForever);
 	  osDelay(10000);
   }
   /* USER CODE END sensAnalog02Task */
 }
 
-/* USER CODE BEGIN Header_StartPumpTask */
+/* USER CODE BEGIN Header_StartInfoTask */
 /**
-* @brief Function implementing the pumpTask thread.
+* @brief Function implementing the infoTask thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartPumpTask */
-void StartPumpTask(void *argument)
+/* USER CODE END Header_StartInfoTask */
+void StartInfoTask(void *argument)
 {
-  /* USER CODE BEGIN StartPumpTask */
+  /* USER CODE BEGIN StartInfoTask */
+	SensorData infoData;
   /* Infinite loop */
   for(;;)
   {
-	  HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-	  osDelay(1000);
+	if(osOK == osMessageQueueGet(queueToInfoHandle, (SensorData*)&infoData, 0, osWaitForever))
+	  	{
+	  		//printf("\n%d:%d \n \r", infoData.id, receivedData.data);
+			switch(infoData.id)
+			{
+			case BMP280_TASK_ID:
+							//Because SensorData type has only one data field, measures temperature and pressure are contantly
+							//overwriting .data. This is the way to determine whether the current data is temperature (usually below 50 Celcius degrees) or atmosperic pressure.
+							if (infoData.data >= 100){
+								break;}
+
+
+							if(infoData.data > TEMPERATURE_MAX)
+								printf("Too hot\n \r");
+							else if (infoData.data < TEMPERATURE_MIN) {
+								printf("Too cold\n \r");
+							}
+							else {
+								printf("Optimal temperature\n \r");
+							}
+							break;
+
+
+			case MOISTURE_SENSOR_TASK_ID:
+				if(infoData.data > MOISTURE_MAX)
+					printf("Dirt too wet\n \r");
+				else if (infoData.data < MOISTURE_MIN) {
+					printf("Dirt too dry\n \r");
+				}
+				else {
+					printf("Dirt is moist enough\n \r");
+				}
+				break;
+
+			case RAIN_DETECTION_TASK_ID:
+				if(infoData.data == GPIO_PIN_SET)
+					printf("It is raining\n \r");
+
+			default:
+				//I have noticed that with semaphore on uart at least 2 tasks must use printf.
+				printf("");
+				break;
+			}
+
+
+	  	}
+    osDelay(2000);
   }
-  /* USER CODE END StartPumpTask */
+  /* USER CODE END StartInfoTask */
 }
 
 /* USER CODE BEGIN Header_sensGPIOTask */
@@ -385,18 +428,16 @@ void sensGPIOTask(void *argument)
   /* USER CODE BEGIN sensGPIOTask */
 	SensorData gpiotask =
 		{
-				.id = 9,
+				.id = RAIN_DETECTION_TASK_ID,
 				.data = 0
 		};
   /* Infinite loop */
   for(;;)
   {
-	  if(HAL_GPIO_ReadPin(GPIO_IN_GPIO_Port, GPIO_IN_Pin))
-		  gpiotask.data = 1000;
-	  else
-		  gpiotask.data = 2000;
-	  osMessageQueuePut(queueToUARTHandle, (SensorData*)&gpiotask, 0, osWaitForever);
-    osDelay(1000);
+	 gpiotask.data = (uint32_t)HAL_GPIO_ReadPin(GPIO_IN_GPIO_Port, GPIO_IN_Pin);
+
+	 osMessageQueuePut(queueToUARTHandle, (SensorData*)&gpiotask, 0, osWaitForever);
+	 osDelay(5000);
   }
   /* USER CODE END sensGPIOTask */
 }
@@ -407,8 +448,8 @@ void _putchar(char character)
 {
   // send char to console etc.
 	osSemaphoreAcquire(UART_SemaphoreHandle, 100);
-	//HAL_UART_Transmit(&hlpuart1, (uint8_t*) &character, 1, 1000);
-	HAL_UART_Transmit(&huart5, (uint8_t*) &character, 1, 1000);
+	HAL_UART_Transmit(&hlpuart1, (uint8_t*) &character, 1, 1000);
+	//HAL_UART_Transmit(&huart5, (uint8_t*) &character, 1, 1000);
 	osSemaphoreRelease(UART_SemaphoreHandle);
 }
 /* USER CODE END Application */
